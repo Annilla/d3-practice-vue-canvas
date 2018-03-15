@@ -1,15 +1,24 @@
+import 'babel-polyfill'
 import Vue from 'vue'
 import Router from 'vue-router'
 import HelloWorld from '@/components/HelloWorld'
+import LineChart from '@/components/LineChart'
 
 Vue.use(Router)
 
 export default new Router({
+  mode: 'history',
+  fallback: false, // Setting this to false essentially makes every router-link navigation a full page refresh in IE9.
   routes: [
     {
-      path: '/',
+      path: `${ROOT_FOLDER}/`,
       name: 'HelloWorld',
       component: HelloWorld
-    }
+    },
+    {
+      path: `${ROOT_FOLDER}/LineChart`,
+      name: 'LineChart',
+      component: LineChart
+    },
   ]
 })
