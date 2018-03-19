@@ -291,11 +291,11 @@ export default {
       ];
 
       // 隨機產生資料
-      for (let i = 0; i < 3; i++) {
-        random[i].value.forEach((e) => {
-          e.number = Math.floor(Math.random() * (max - min + 1)) + min;
-        });
-      }
+      // for (let i = 0; i < 3; i++) {
+      //   random[i].value.forEach((e) => {
+      //     e.number = Math.floor(Math.random() * (max - min + 1)) + min;
+      //   });
+      // }
 
       this.data = random;
       
@@ -347,8 +347,6 @@ export default {
   }
   .growDot-enter {
     opacity: 0;
-    transform: scale(0);
-    transform-origin: 50%;
   }
   /* 說明 */
   .detail {
