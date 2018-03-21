@@ -4,6 +4,10 @@
     <div class="detail">高雄市不動產買賣統計(104年6-10月)</div>
     <!-- 圖表 -->
     <div class="chartContain">
+      <div :class="{ tooltip: true, hidden: hideTooltip}">
+        <div class="name">左營區 / 10月</div>
+        <div class="value">214 件</div>
+      </div>
     </div>
   </div>
 </template>
@@ -23,13 +27,16 @@ export default {
         paddingBottom: 100,
         paddingLeft: 60
       },
+      hideTooltip: true,
       conWidth: 0, // Get Container Width
       canvas: undefined, // For D3 Draw Canvas
       ctx: undefined, // Set Canvas 2D
       customBase: undefined, // This is the parent of all other elements
       custom: undefined,
+      yTick: undefined, // Y軸 tick
       dots: undefined, // 折點
-      lines: undefined // 折線
+      timer: undefined, // For Animation Timer
+      drawTimes: 0 // 紀錄劃線次數
     };
   },
   computed: {
@@ -40,9 +47,11 @@ export default {
         (this.chart.width + this.chart.paddingLeft + this.chart.paddingRight)
       );
     },
+    // Caculate Container Height
     conHeight() {
       return this.conWidth * this.conRate;
     },
+    // Caculate Chart Width
     chartWidth() {
       return (
         this.conWidth *
@@ -50,6 +59,7 @@ export default {
         (this.chart.width + this.chart.paddingLeft + this.chart.paddingRight)
       );
     },
+    // Caculate Chart Height
     chartHeight() {
       return (
         this.conHeight *
@@ -95,6 +105,10 @@ export default {
         .scaleLinear()
         .domain([Ymin, Ymax])
         .range([this.chartHeight, 0]);
+    },
+    // Y軸設定
+    yAxis() {
+      return d3.axisLeft(this.yScale).tickSizeInner(-this.chart.height);
     },
     // 顏色函數
     color() {
@@ -144,9 +158,10 @@ export default {
   methods: {
     initCanvas() {
       let chartContain = document.querySelector(".chartContain");
+      let canvas = document.getElementById("canvas");
 
-      // Clear Container Element
-      chartContain.innerHTML = "";
+      // Clear Canvas Element
+      if (canvas !== null) canvas.parentNode.removeChild(canvas);
 
       // Get Container Width
       this.conWidth = chartContain.offsetWidth;
@@ -171,50 +186,61 @@ export default {
     },
     dataBind(data) {
       let dotIndex = 0; // For dot color
+      let nameIndex = 0; // For Name
 
       /*-------------------------
-        折線
+        Y軸
       -------------------------*/
+      this.yTick = this.custom
+        .append("g")
+        .attr("class", "axis axisY")
+        .call(this.yAxis)
+        .selectAll("g.tick");
 
       /*-------------------------
         折點
       -------------------------*/
       // 繪製折點 g.dot > circle.circle
-      // this.dots = this.custom
-      //   .selectAll("g.dot")
-      //   .data(data)
-      //   .enter()
-      //   .append("g") // 塞好 'g'
-      //   .attr("class", "dot") // 準備好 Class
-      //   .selectAll("circle.circle")
-      //   .data(function(d) {
-      //     return d.value;
-      //   })
-      //   .enter()
-      //   .append("circle") // 塞好 'circle'
-      //   .attr("class", "circle"); // 準備好 Class
+      this.dots = this.custom
+        .selectAll("g.dot")
+        .data(data)
+        .enter()
+        .append("g") // 塞好 'g'
+        .attr("class", "dot") // 準備好 Class
+        .selectAll("circle.circle")
+        .data(function(d) {
+          return d.value;
+        })
+        .enter()
+        .append("circle") // 塞好 'circle'
+        .attr("class", "circle"); // 準備好 Class
 
       // 設置折點 Attribute
-      // this.dots
-      //   .attr("cx", (d, i) => {
-      //     return this.xScale(i + 1);
-      //   })
-      //   .attr("cy", d => {
-      //     return this.yScale(d.number);
-      //   })
-      //   .attr("r", "5")
-      //   .attr("fill", () => {
-      //     dotIndex++;
-      //     return this.color(Math.floor((dotIndex - 1) / 5));
-      //   })
-      //   .attr("stroke", "#FFFFFF");
+      this.dots
+        .attr("cx", (d, i) => {
+          return this.xScale(i + 1) + this.chartLeft;
+        })
+        .attr("cy", d => {
+          return this.yScale(d.number) + this.chartTop;
+        })
+        .attr("r", "5")
+        .attr("fill", () => {
+          dotIndex++;
+          return this.color(Math.floor((dotIndex - 1) / 5));
+        })
+        .attr("name", (d, i) => {
+          nameIndex++;
+          return this.data[Math.floor((nameIndex - 1) / 5)].name;
+        })
+        .attr("stroke", "#FFFFFF");
 
       // Draw Canvas
       this.drawCanvas();
     },
     drawCanvas() {
-      let tickSize = 6; // X軸點大小
-      let tickYCount = 10; // Y軸點數
+      let tickSize = 6; // 軸點大小
+      let canvas = document.querySelector("#canvas");
+
       // Clear Canvas
       this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
 
@@ -255,21 +281,64 @@ export default {
         );
       });
 
+      // 繪製X軸標籤
+      this.data.forEach((el, index) => {
+        // 圓點
+        // 開始繪製
+        this.ctx.save();
+        this.ctx.beginPath();
+        // 繪製點
+        this.ctx.arc(
+          this.chartLeft + index * 100,
+          this.chartTop + this.chartHeight + 50,
+          5,
+          0,
+          2 * Math.PI
+        );
+        // 填色
+        this.ctx.fillStyle = this.color(index);
+        this.ctx.fill();
+        // 結束繪製
+        this.ctx.closePath();
+
+        // 文字
+        this.ctx.textAlign = "left";
+        this.ctx.textBaseline = "middle";
+        this.ctx.font = "16px sans-serif";
+        this.ctx.fillStyle = "#000";
+        this.ctx.fillText(
+          el.name,
+          this.chartLeft + index * 100 + 10,
+          this.chartTop + this.chartHeight + 50
+        );
+        this.ctx.restore();
+      });
+
       /*-------------------------
         Y軸
       -------------------------*/
       // 繪製Y軸點
       this.ctx.beginPath();
-      for (let i = 0; i < tickYCount; i++) {
-        this.ctx.moveTo(
-          this.chartLeft - tickSize,
-          this.chartTop + this.chartHeight / tickYCount * i
-        );
-        this.ctx.lineTo(
-          this.chartLeft,
-          this.chartTop + this.chartHeight / tickYCount * i
-        );
-      }
+      // 中間內部灰線
+      this.yTick.each((el, index, arr) => {
+        let node = d3.select(arr[index]);
+        let yTrans = node.attr("transform");
+        let yPos = Number(yTrans.split(",")[1].split(")")[0]) + this.chartTop;
+
+        // 跳過 0 的軸點
+        if (index === 0) return;
+
+        // 繪製軸點
+        this.ctx.moveTo(this.chartLeft, yPos);
+        this.ctx.lineTo(this.chartLeft + this.chartWidth, yPos);
+      });
+      this.ctx.strokeStyle = "#e6e6e6"; // 線顏色
+      this.ctx.stroke();
+      // 最上方的刻點
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.chartLeft - tickSize, this.chartTop);
+      this.ctx.lineTo(this.chartLeft, this.chartTop);
+      this.ctx.strokeStyle = "#000"; // 線顏色
       this.ctx.stroke();
 
       // 繪製Y軸線
@@ -279,51 +348,98 @@ export default {
       this.ctx.stroke();
 
       // 繪製Y軸文字
-      // this.ctx.textAlign = "center";
-      // this.ctx.textBaseline = "top";
-      // for (let i = 0; i < tickYCount; i++) {
-      //   this.ctx.fillText(
-      //     i,
-      //     -tickSize,
-      //     this.chartTop + this.chartHeight / tickYCount * i
-      //   );
-      // }
+      this.ctx.textAlign = "right";
+      this.ctx.textBaseline = "middle";
+      this.yTick.each((el, index, arr) => {
+        let node = d3.select(arr[index]);
+        let yTrans = node.attr("transform");
+        let yPos = Number(yTrans.split(",")[1].split(")")[0]) + this.chartTop;
+
+        this.ctx.fillText(
+          node.property("innerText"),
+          this.chartLeft - tickSize,
+          yPos
+        );
+      });
+
+      // 繪製Y軸標籤
+      // start by saving the current context (current orientation, origin)
+      this.ctx.save();
+      this.ctx.translate(0, 0);
+      this.ctx.rotate(-Math.PI / 2);
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "top";
+      this.ctx.font = "16px sans-serif";
+      this.ctx.fillText("件數", -(this.chartTop + this.chartHeight / 2), 0);
+      this.ctx.restore(); // now restore the canvas flipping it back to its original orientation
 
       /*-------------------------
-        折線
+        折線動畫
       -------------------------*/
-      this.dataArray.forEach((el, index) => {
-        this.ctx.beginPath(); // 開始繪製
-        this.line(el); // 使用 D3 line 函數
-        this.ctx.strokeStyle = this.color(index); // 線顏色
-        this.ctx.stroke(); // 繪製線
+      this.timer = d3.timer(elapsed => {
+        this.animationLine(elapsed);
       });
+      // this.dataArray.forEach((el, index) => {
+      //   this.ctx.beginPath(); // 開始繪製
+      //   this.line(el); // 使用 D3 line 函數
+      //   this.ctx.strokeStyle = this.color(index); // 線顏色
+      //   this.ctx.stroke(); // 繪製線
+      // });
 
       /*-------------------------
         折點
       -------------------------*/
-      // this.dots.each((value, index, el) => {
-      //   let node = d3.select(el[index]);
+      this.dots.each((el, index, arr) => {
+        let node = d3.select(arr[index]);
 
-      //   // 開始繪製
-      //   this.ctx.beginPath();
-      //   // 繪製點
-      //   this.ctx.arc(
-      //     node.attr("cx"),
-      //     node.attr("cy"),
-      //     node.attr("r"),
-      //     0,
-      //     2 * Math.PI
-      //   );
-      //   // 填色
-      //   this.ctx.fillStyle = node.attr("fill");
-      //   this.ctx.fill();
-      //   // 邊框色
-      //   this.ctx.strokeStyle = node.attr("stroke");
-      //   this.ctx.stroke();
-      //   // 結束繪製
-      //   this.ctx.closePath();
+        // 開始繪製
+        this.ctx.beginPath();
+        // 繪製點
+        this.ctx.arc(
+          node.attr("cx"),
+          node.attr("cy"),
+          node.attr("r"),
+          0,
+          2 * Math.PI
+        );
+        // 填色
+        this.ctx.fillStyle = node.attr("fill");
+        this.ctx.fill();
+        // 邊框色
+        this.ctx.strokeStyle = node.attr("stroke");
+        this.ctx.stroke();
+        // 結束繪製
+        this.ctx.closePath();
+      });
+
+      // Canvas On Mouseover
+      canvas.addEventListener("mousemove", e => {
+        this.showTooltip(e);
+      });
+    },
+    animationLine(elapsed) {
+      let len = this.data[0].value.length;
+      let duration = 1000 / (len - 1);
+      // compute how far through the animation we are (0 to 1)
+      let t = Math.min(1, d3.easeCubic(elapsed / duration));
+      console.log(t, this.drawTimes);
+
+      // update point positions (interpolate between source and target)
+      // points.forEach(point => {
+      //   point.x = point.sx * (1 - t) + point.tx * t;
+      //   point.y = point.sy * (1 - t) + point.ty * t;
       // });
+
+      if (t === 1 && this.drawTimes < len) {
+        this.drawTimes++;
+        this.timer.restart((elapsed) => {
+          this.animationLine(elapsed);
+        });
+      } else if (t === 1 && this.drawTimes === len) {
+        // if this animation is over
+        // stop this timer since we are done animating.
+        this.timer.stop();
+      }
     },
     randomData() {
       let min = 0;
@@ -414,6 +530,51 @@ export default {
       // }
 
       this.data = random;
+    },
+    showTooltip(e) {
+      // Correct mouse position:
+      let canvas = document.querySelector("#canvas");
+      let rect = canvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      let mouseX = x + 20;
+      let mouseY = y;
+      let pointCircle = false;
+
+      this.dots.each((el, index, arr) => {
+        let node = d3.select(arr[index]);
+
+        // 開始繪製
+        this.ctx.beginPath();
+        // 點 Path
+        this.ctx.arc(
+          node.attr("cx"),
+          node.attr("cy"),
+          node.attr("r"),
+          0,
+          2 * Math.PI
+        );
+        // 如果滑過原點
+        if (this.ctx.isPointInPath(x, y) && !pointCircle) {
+          // 設置位置
+          document
+            .querySelector(".tooltip")
+            .setAttribute("style", `left: ${mouseX}px; top: ${mouseY}px;`);
+          // 插入名稱
+          document.querySelector(".tooltip .name").innerHTML = `${node.attr(
+            "name"
+          )} / ${el.month}`;
+          document.querySelector(".tooltip .value").innerHTML = `${
+            el.number
+          } 件`;
+
+          // Tooltip 區塊
+          this.hideTooltip = false;
+          pointCircle = true;
+        } else if (!this.ctx.isPointInPath(x, y) && !pointCircle) {
+          this.hideTooltip = true;
+        }
+      });
     }
   }
 };
@@ -428,6 +589,21 @@ export default {
   .chartContain {
     max-width: 600px;
     margin: 0 auto;
+    position: relative;
+    .tooltip {
+      min-width: 100px;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      position: absolute;
+      text-align: left;
+      line-height: 1.5em;
+      z-index: 1;
+      &.hidden {
+        visibility: hidden;
+      }
+    }
   }
 }
 </style>
