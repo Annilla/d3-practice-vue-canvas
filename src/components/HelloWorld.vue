@@ -2,8 +2,9 @@
   <div class="hello">
     <ul>
       <li><router-link :to="{ name: 'LineChart' }">折線圖</router-link></li>
-      <!-- <li><router-link :to="{ name: 'BarPChart' }">橫條圖</router-link></li>
-      <li><router-link :to="{ name: 'BarVChart' }">直條圖</router-link></li>
+      <li><router-link :to="{ name: 'BarPChart' }">橫條圖</router-link></li>
+      <li><router-link :to="{ name: 'BarPChart2' }">橫條圖</router-link></li>
+      <!-- <li><router-link :to="{ name: 'BarVChart' }">直條圖</router-link></li>
       <li><router-link :to="{ name: 'DonutChart' }">甜甜圈圖</router-link></li> -->
     </ul>
   </div>

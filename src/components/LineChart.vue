@@ -238,12 +238,6 @@ export default {
           return this.line(d);
         });
 
-      // 設置折線 Attribute
-      // this.lines.append('path')
-      //   .attr('fill', 'none')
-      //   .attr('stroke', (d, i) => { return this.color(i); })
-      //   .attr('d', (d) => { return this.line(d); });
-
       /*-------------------------
         折點
       -------------------------*/

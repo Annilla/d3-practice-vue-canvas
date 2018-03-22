@@ -4,6 +4,7 @@ import Router from 'vue-router'
 import HelloWorld from '@/components/HelloWorld'
 import LineChart from '@/components/LineChart'
 import BarPChart from '@/components/BarPChart'
+import BarPChart2 from '@/components/BarPChart2'
 import BarVChart from '@/components/BarVChart'
 import DonutChart from '@/components/DonutChart'
 
@@ -27,6 +28,11 @@ export default new Router({
       path: `${ROOT_FOLDER}/BarPChart`,
       name: 'BarPChart',
       component: BarPChart
+    },
+    {
+      path: `${ROOT_FOLDER}/BarPChart2`,
+      name: 'BarPChart2',
+      component: BarPChart2
     },
     {
       path: `${ROOT_FOLDER}/BarVChart`,
