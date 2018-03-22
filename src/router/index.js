@@ -3,7 +3,6 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import HelloWorld from '@/components/HelloWorld'
 import LineChart from '@/components/LineChart'
-import LineChart2 from '@/components/LineChart2'
 import BarPChart from '@/components/BarPChart'
 import BarVChart from '@/components/BarVChart'
 import DonutChart from '@/components/DonutChart'
@@ -23,11 +22,6 @@ export default new Router({
       path: `${ROOT_FOLDER}/LineChart`,
       name: 'LineChart',
       component: LineChart
-    },
-    {
-      path: `${ROOT_FOLDER}/LineChart2`,
-      name: 'LineChart2',
-      component: LineChart2
     },
     {
       path: `${ROOT_FOLDER}/BarPChart`,
