@@ -3,6 +3,9 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import HelloWorld from '@/components/HelloWorld'
 import LineChart from '@/components/LineChart'
+import BarPChart from '@/components/BarPChart'
+import BarVChart from '@/components/BarVChart'
+import DonutChart from '@/components/DonutChart'
 
 Vue.use(Router)
 
@@ -20,5 +23,21 @@ export default new Router({
       name: 'LineChart',
       component: LineChart
     },
+    {
+      path: `${ROOT_FOLDER}/BarPChart`,
+      name: 'BarPChart',
+      component: BarPChart
+    },
+    {
+      path: `${ROOT_FOLDER}/BarVChart`,
+      name: 'BarVChart',
+      component: BarVChart
+    },
+    {
+      path: `${ROOT_FOLDER}/DonutChart`,
+      name: 'DonutChart',
+      component: DonutChart
+    },
+    { path: '*', redirect: `${ROOT_FOLDER}/` }
   ]
 })
