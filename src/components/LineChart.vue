@@ -238,12 +238,6 @@ export default {
           return this.line(d);
         });
 
-      // 設置折線 Attribute
-      // this.lines.append('path')
-      //   .attr('fill', 'none')
-      //   .attr('stroke', (d, i) => { return this.color(i); })
-      //   .attr('d', (d) => { return this.line(d); });
-
       /*-------------------------
         折點
       -------------------------*/
@@ -424,8 +418,6 @@ export default {
         動畫
       -------------------------*/
       this.timer = d3.timer(elapsed => {
-        // Clear Canvas
-        this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
         this.animationLine(elapsed);
       });
 
@@ -436,9 +428,10 @@ export default {
     },
     animationLine(elapsed) {
       let duration = 500;
-      // compute how far through the animation we are (0 to 1)
-      let t = Math.min(1, elapsed / duration);
-      // console.log(t);
+      let t = Math.min(1, elapsed / duration); // compute how far through the animation we are (0 to 1)
+
+      // Clear Canvas
+      this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
 
       /*-------------------------
         折線
@@ -610,7 +603,7 @@ export default {
           0,
           2 * Math.PI
         );
-        // 如果滑過原點
+        // 如果滑過點
         if (this.ctxA.isPointInPath(x, y) && !pointCircle) {
           // 設置位置
           document
