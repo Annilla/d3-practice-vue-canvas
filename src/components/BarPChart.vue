@@ -367,10 +367,12 @@ export default {
       this.bars.each((el, index, arr) => {
         let node = d3.select(arr[index]);
 
+        // 開始繪製
+        this.ctxA.beginPath();
         this.ctxA.rect(
           node.attr("x"),
           node.attr("y"),
-          node.attr("width") * t,
+          Number(node.attr("width")) * t,
           node.attr("height")
         );
         this.ctxA.globalAlpha = t;
