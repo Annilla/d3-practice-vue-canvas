@@ -40,7 +40,8 @@ export default {
       xTick: undefined, // X軸 tick
       yTick: undefined, // Y軸 tick
       bars: undefined, // 繪製橫條
-      barCount: -1
+      barCount: -1,
+      timer: undefined // For Animation Timer
     };
   },
   computed: {

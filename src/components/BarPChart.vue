@@ -38,7 +38,8 @@ export default {
       custom: undefined,
       xTick: undefined, // X軸 tick
       yTick: undefined, // Y軸 tick
-      bars: undefined // 繪製橫條
+      bars: undefined, // 繪製橫條
+      timer: undefined // For Animation Timer
     };
   },
   computed: {
