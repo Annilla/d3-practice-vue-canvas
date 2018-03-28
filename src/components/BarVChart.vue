@@ -39,8 +39,6 @@ export default {
       custom: undefined,
       xTick: undefined, // X軸 tick
       yTick: undefined, // Y軸 tick
-      bars: undefined, // 繪製橫條
-      barCount: -1,
       timer: undefined // For Animation Timer
     };
   },
@@ -171,6 +169,37 @@ export default {
           this.chartGap * this.data.length) /
         (this.valueLength * this.data.length)
       );
+    },
+    bars() {
+      // 直條
+      let barArray = [];
+
+      this.data.forEach((d, index) => {
+        d.value.forEach((e, i) => {
+          barArray.push({
+            color: this.color(index),
+            /* --------------------
+            1. 把群組直條往左推整體的一半
+                - this.barWidth * this.data.length / 2
+            2. 依個別順序向右平移
+                + this.barWidth * index
+            -------------------- */
+            x:
+              this.chartLeft +
+              this.xScale(i + 1) -
+              this.barWidth * this.data.length / 2 +
+              this.barWidth * index,
+            y: this.chartTop + this.yScale(e.number),
+            width: this.barWidth,
+            height: this.chartHeight - this.yScale(e.number),
+            name: this.data[index].name,
+            month: e.month,
+            number: e.number
+          });
+        });
+      });
+
+      return barArray;
     }
   },
   mounted() {
@@ -237,60 +266,6 @@ export default {
         .attr("class", "axis axisY")
         .call(this.yAxis)
         .selectAll("g.tick");
-
-      /*-------------------------
-        橫條
-      -------------------------*/
-      // 繪製 bar
-      this.bars = this.custom
-        .selectAll("g.bars")
-        .data(data)
-        .enter()
-        .append("g")
-        .attr("class", "bars")
-        .selectAll("rect.bar")
-        .data(function(d) {
-          return d.value;
-        })
-        .enter()
-        .append("rect") //塞好'rect'
-        .attr("class", "bar"); //準備好Class
-
-      // 設置橫條 Attribute
-      this.barCount = -1; // 重置
-      this.bars
-        .attr("fill", (d, i, arr) => {
-          this.barCount++;
-          return this.color(Math.floor(this.barCount / this.valueLength));
-        })
-        /* --------------------
-        1. 把群組直條往左推整體的一半
-            - this.barWidth * this.data.length / 2
-        2. 依個別順序向右平移
-            + this.barWidth * (i % this.valueLength)
-        -------------------- */
-        .attr("x", (d, i) => {
-          this.barCount++;
-          return (
-            this.chartLeft +
-            this.xScale(i + 1) -
-            this.barWidth * this.data.length / 2 +
-            this.barWidth *
-              (Math.floor(this.barCount / this.valueLength) % this.data.length)
-          );
-        })
-        .attr("y", d => {
-          return this.chartTop + this.yScale(d.number);
-        })
-        .attr("width", d => {
-          return this.barWidth;
-        })
-        .attr("height", d => {
-          return this.chartHeight - this.yScale(d.number);
-        }).attr("name", (d, i) => {
-          this.barCount++;
-          return this.data[(Math.floor(this.barCount / this.valueLength) % this.data.length)].name;
-        });
 
       // Draw Canvas
       this.drawCanvas();
@@ -459,19 +434,12 @@ export default {
       /*-------------------------
         直條
       -------------------------*/
-      this.bars.each((el, index, arr) => {
-        let node = d3.select(arr[index]);
-
+      this.bars.forEach((e, i) => {
         // 開始繪製
         this.ctxA.beginPath();
-        this.ctxA.rect(
-          node.attr("x"),
-          Number(node.attr("y")) + Number(node.attr("height")) * (1 - t),
-          node.attr("width"),
-          Number(node.attr("height")) * t
-        );
+        this.ctxA.rect(e.x, e.y + e.height * (1 - t), e.width, e.height * t);
         this.ctxA.globalAlpha = t;
-        this.ctxA.fillStyle = node.attr("fill");
+        this.ctxA.fillStyle = e.color;
         this.ctxA.fill();
       });
 
@@ -482,15 +450,9 @@ export default {
       this.ctxA.textBaseline = "bottom";
       this.ctxA.textAlign = "center";
       this.ctxA.fillStyle = "gray";
-      this.bars.each((el, index, arr) => {
-        let node = d3.select(arr[index]);
-
+      this.bars.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.fillText(
-          el.number,
-          Number(node.attr("x")) + this.barWidth / 2,
-          Number(node.attr("y"))
-        );
+        this.ctxA.fillText(e.number, e.x + this.barWidth / 2, e.y);
       });
 
       // if this animation is over
@@ -546,17 +508,10 @@ export default {
       let mouseY = y;
       let pointRec = false;
 
-      this.bars.each((el, index, arr) => {
-        let node = d3.select(arr[index]);
-
+      this.bars.forEach((e, i) => {
         // 開始繪製
         this.ctxA.beginPath();
-        this.ctxA.rect(
-          node.attr("x"),
-          node.attr("y"),
-          node.attr("width"),
-          node.attr("height")
-        );
+        this.ctxA.rect(e.x, e.y, e.width, e.height);
         // 如果滑過
         if (this.ctxA.isPointInPath(x, y) && !pointRec) {
           // 設置位置
@@ -564,11 +519,11 @@ export default {
             .querySelector(".tooltip")
             .setAttribute("style", `left: ${mouseX}px; top: ${mouseY}px;`);
           // 插入名稱
-          document.querySelector(".tooltip .name").innerHTML = `${node.attr(
-            "name"
-          )} / ${el.month}`;
+          document.querySelector(".tooltip .name").innerHTML = `${e.name} / ${
+            e.month
+          }`;
           document.querySelector(".tooltip .value").innerHTML = `${
-            el.number
+            e.number
           } 件`;
 
           // Tooltip 區塊
