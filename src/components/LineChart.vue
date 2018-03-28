@@ -38,8 +38,6 @@ export default {
       customBase: undefined, // This is the parent of all other elements
       custom: undefined,
       yTick: undefined, // Y軸 tick
-      dots: undefined, // 折點
-      lines: undefined, // 折線
       timer: undefined // For Animation Timer
     };
   },
@@ -160,6 +158,39 @@ export default {
           return this.yScale(d) + this.chartTop;
         })
         .context(this.ctxA);
+    },
+    lines() {
+      // 折線
+      let lineArray = [];
+
+      this.dataArray.forEach((e, i) => {
+        lineArray.push({
+          color: this.color(i),
+          d: this.line(e)
+        });
+      });
+
+      return lineArray;
+    },
+    dots() {
+      // 折點
+      let dotArray = [];
+
+      this.data.forEach((d, index) => {
+        d.value.forEach((e, i) => {
+          dotArray.push({
+            color: this.color(index),
+            cx: this.xScale(i + 1) + this.chartLeft,
+            cy: this.yScale(e.number) + this.chartTop,
+            r: 5,
+            name: d.name,
+            month: e.month,
+            number: e.number
+          });
+        });
+      });
+
+      return dotArray;
     }
   },
   mounted() {
@@ -220,60 +251,6 @@ export default {
         .attr("class", "axis axisY")
         .call(this.yAxis)
         .selectAll("g.tick");
-
-      /*-------------------------
-        折線
-      -------------------------*/
-      // 繪製 line
-      this.lines = this.custom
-        .selectAll("g.line")
-        .data(this.dataArray)
-        .enter()
-        .append("path")
-        .attr("fill", "none")
-        .attr("stroke", (d, i) => {
-          return this.color(i);
-        })
-        .attr("d", d => {
-          return this.line(d);
-        });
-
-      /*-------------------------
-        折點
-      -------------------------*/
-      // 繪製折點 g.dot > circle.circle
-      this.dots = this.custom
-        .selectAll("g.dot")
-        .data(data)
-        .enter()
-        .append("g") // 塞好 'g'
-        .attr("class", "dot") // 準備好 Class
-        .selectAll("circle.circle")
-        .data(function(d) {
-          return d.value;
-        })
-        .enter()
-        .append("circle") // 塞好 'circle'
-        .attr("class", "circle"); // 準備好 Class
-
-      // 設置折點 Attribute
-      this.dots
-        .attr("cx", (d, i) => {
-          return this.xScale(i + 1) + this.chartLeft;
-        })
-        .attr("cy", d => {
-          return this.yScale(d.number) + this.chartTop;
-        })
-        .attr("r", "5")
-        .attr("fill", () => {
-          dotIndex++;
-          return this.color(Math.floor((dotIndex - 1) / 5));
-        })
-        .attr("name", (d, i) => {
-          nameIndex++;
-          return this.data[Math.floor((nameIndex - 1) / 5)].name;
-        })
-        .attr("stroke", "#FFFFFF");
 
       // Draw Canvas
       this.drawCanvas();
@@ -436,43 +413,34 @@ export default {
       /*-------------------------
         折線
       -------------------------*/
-      this.lines.each((el, index, arr) => {
+      this.lines.forEach((e, i) => {
         let path = document.querySelector("#calPath path");
-        let node = d3.select(arr[index]);
         let totalLength; // Path Length
 
-        path.setAttribute("d", node.attr("d"));
+        path.setAttribute("d", e.d);
         totalLength = path.getTotalLength();
 
         this.ctxA.setLineDash([totalLength]);
         this.ctxA.lineDashOffset = totalLength * (1 - t);
         this.ctxA.beginPath(); // 開始繪製
-        this.lineCanvas(this.dataArray[index]);
-        this.ctxA.strokeStyle = this.color(index); // 線顏色
+        this.lineCanvas(this.dataArray[i]);
+        this.ctxA.strokeStyle = e.color; // 線顏色
         this.ctxA.stroke(); // 繪製線
       });
 
       /*-------------------------
         折點
       -------------------------*/
-      this.dots.each((el, index, arr) => {
-        let node = d3.select(arr[index]);
-
+      this.dots.forEach((e, i) => {
         // 開始繪製
         this.ctxA.beginPath();
         // 繪製點
-        this.ctxA.arc(
-          node.attr("cx"),
-          node.attr("cy"),
-          Number(node.attr("r")) * t,
-          0,
-          2 * Math.PI
-        );
+        this.ctxA.arc(e.cx, e.cy, e.r * t, 0, 2 * Math.PI);
         // 填色
-        this.ctxA.fillStyle = node.attr("fill");
+        this.ctxA.fillStyle = e.color;
         this.ctxA.fill();
         // 邊框色
-        this.ctxA.strokeStyle = node.attr("stroke");
+        this.ctxA.strokeStyle = "#fff";
         this.ctxA.stroke();
         // 結束繪製
         this.ctxA.closePath();
@@ -590,19 +558,11 @@ export default {
       let mouseY = y;
       let pointCircle = false;
 
-      this.dots.each((el, index, arr) => {
-        let node = d3.select(arr[index]);
-
+      this.dots.forEach((e, i) => {
         // 開始繪製
         this.ctxA.beginPath();
         // 點 Path
-        this.ctxA.arc(
-          node.attr("cx"),
-          node.attr("cy"),
-          node.attr("r"),
-          0,
-          2 * Math.PI
-        );
+        this.ctxA.arc(e.cx, e.cy, e.r, 0, 2 * Math.PI);
         // 如果滑過點
         if (this.ctxA.isPointInPath(x, y) && !pointCircle) {
           // 設置位置
@@ -610,11 +570,11 @@ export default {
             .querySelector(".tooltip")
             .setAttribute("style", `left: ${mouseX}px; top: ${mouseY}px;`);
           // 插入名稱
-          document.querySelector(".tooltip .name").innerHTML = `${node.attr(
-            "name"
-          )} / ${el.month}`;
+          document.querySelector(".tooltip .name").innerHTML = `${e.name} / ${
+            e.month
+          }`;
           document.querySelector(".tooltip .value").innerHTML = `${
-            el.number
+            e.number
           } 件`;
 
           // Tooltip 區塊

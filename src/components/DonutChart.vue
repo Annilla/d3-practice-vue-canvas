@@ -4,44 +4,12 @@
     <div class="detail">高雄市不動產買賣統計(104年6月)</div>
     <!-- 圖表 -->
     <div class="chartContain">
-      <div class="chartWrap">
-        <svg class="chart" :viewBox="`0 0 ${chart.outerRadius*2} ${chart.outerRadius*2}`" preserveAspectRatio="xMidYMin slice">
-          <!-- 執行動畫的圓圈 -->
-          <circle class="circle"
-            v-for="(c, key) in donut"
-            ref="circles"
-            :key="`${key}${c.percentage}${c.offset}`"
-            :r="radius"
-            :cx="chart.outerRadius"
-            :cy="chart.outerRadius"
-            :stroke-width="chart.outerRadius - chart.innerRadius"
-            :stroke-dashoffset="c.offset"
-            :stroke="c.color"
-            fill= "transparent"/>
-          <!-- 滑鼠滑過的區塊 -->
-          <g
-            class="arc"
-            v-for="(p, key) in pie"
-            :key="`${key}${p.d}`"
-            :transform="`translate(${chart.outerRadius},${chart.outerRadius}) rotate(90)`"
-            v-on:mouseover="showTooltip(key, $event)" v-on:mouseout="hiddenTooltip">
-            <path
-              fill="transparent"
-              :d="p.d">
-            </path>
-            <text
-              :transform="`translate(${p.centroid})`"
-              text-anchor="middle"
-              fill="white">{{ p.percentage }}
-            </text>
-          </g>
-        </svg>
-      </div>
+      <div class="chartWrap"></div>
       <ul class="labelWrap">
         <li
           v-for="(p, key) in pie"
           :key="`${key}${p.d}`">
-          <span class="color" :style="`background-color: ${donut[key].color};`"></span>
+          <span class="color" :style="`background-color: ${p.color};`"></span>
           <span class="region">{{ data[key].name }}</span>
           <span class="percentage">{{ p.percentage }}</span>
         </li>
@@ -58,8 +26,6 @@
 <script>
 import * as d3 from "d3";
 
-// Pie Chart Reference: https://medium.com/@heyoka/scratch-made-svg-donut-pie-charts-in-html5-2c587e935d72
-
 export default {
   data() {
     return {
@@ -68,20 +34,36 @@ export default {
         innerRadius: 100, // 0 for PieChart
         outerRadius: 200
       },
-      hideTooltip: true
+      hideTooltip: true,
+      conWidth: 0, // Get Container Width
+      canvas: undefined, // For D3 Draw Canvas
+      ctx: undefined, // Set Canvas 2D
+      canvasA: undefined, // For D3 Draw Canvas Animate
+      ctxA: undefined, // Set Canvas 2D Animate
+      customBase: undefined, // This is the parent of all other elements
+      custom: undefined,
+      timer: undefined // For Animation Timer
     };
   },
   computed: {
+    // Caculate Container Height 正圓長寬 1:1
+    conHeight() {
+      return this.conWidth;
+    },
+    // Caculate Chart OuterRadius
+    chartOuterRadius() {
+      return this.conWidth / 2;
+    },
+    // Caculate Chart InnerRadius
+    chartInnerRadius() {
+      return this.chartOuterRadius * this.chart.innerRadius / this.chart.outerRadius;
+    },
     // Circle 半徑
     radius() {
       return (
-        this.chart.outerRadius -
-        (this.chart.outerRadius - this.chart.innerRadius) / 2
+        this.chartOuterRadius -
+        (this.chartOuterRadius - this.chartInnerRadius) / 2
       );
-    },
-    circum() {
-      // circumference = 2 * pi * radius
-      return 2 * Math.PI * this.radius;
     },
     // 顏色函數
     color() {
@@ -98,26 +80,6 @@ export default {
 
       return sum;
     },
-    donut() {
-      let newArray = [];
-      let afterPer = 0; // 把前面的 percentage 累加 (0.xxx)
-
-      if (this.data.length) {
-        this.data.forEach((e, i) => {
-          // 新增陣列
-          newArray.push({
-            percentage: e.value / this.totalSum * 100,
-            offset: this.circum * (1 - afterPer),
-            color: this.color(i)
-          });
-
-          // 把前面的 percentage 累加 (0.xxx)
-          afterPer = afterPer + e.value / this.totalSum;
-        });
-      }
-
-      return newArray;
-    },
     pie() {
       let newArray = [];
       let format = d3.format(".0%"); // 百分比單位
@@ -130,20 +92,14 @@ export default {
 
       if (this.data.length) {
         this.data.forEach((e, i) => {
-          // 準備好 arc 路徑
-          let arc = d3
-            .arc()
-            .innerRadius(this.chart.innerRadius)
-            .outerRadius(this.chart.outerRadius);
-
           // 新增陣列
           newArray.push({
-            d: arc({
-              startAngle: pie[i].startAngle,
-              endAngle: pie[i].endAngle
-            }),
-            centroid: arc.centroid(pie[i]),
-            percentage: format(e.value / this.totalSum)
+            startAngle: pie[i].startAngle - Math.PI / 2,
+            endAngle: pie[i].endAngle - Math.PI / 2,
+            percentage: format(e.value / this.totalSum),
+            color: this.color(i),
+            name: e.name,
+            value: e.value
           });
         });
       }
@@ -156,6 +112,118 @@ export default {
     this.randomData();
   },
   methods: {
+    initCanvas() {
+      let chartContain = document.querySelector(".chartWrap");
+      let canvas = document.getElementById("canvas");
+      let canvasA = document.getElementById("canvasA");
+
+      // Clear Canvas Element
+      if (canvas !== null) {
+        canvas.parentNode.removeChild(canvas);
+        canvasA.parentNode.removeChild(canvasA);
+      }
+
+      // Get Container Width
+      this.conWidth = chartContain.offsetWidth;
+
+      // For D3 Draw Canvas
+      this.canvas = d3
+        .select(".chartWrap")
+        .append("canvas")
+        .attr("id", "canvas")
+        .attr("class", "chart")
+        .attr("width", this.conWidth)
+        .attr("height", this.conHeight);
+      // For D3 Draw Canvas Animation
+      this.canvasA = d3
+        .select(".chartWrap")
+        .append("canvas")
+        .attr("id", "canvasA")
+        .attr("class", "chartA")
+        .attr("width", this.conWidth)
+        .attr("height", this.conHeight);
+
+      this.ctx = this.canvas.node().getContext("2d");
+      this.ctxA = this.canvasA.node().getContext("2d");
+
+      // Set the parent of all other elements
+      this.customBase = document.createElement("custom");
+      this.custom = d3.select(this.customBase);
+
+      // Draw Canvas
+      this.drawCanvas();
+    },
+    drawCanvas() {
+      let canvasA = document.querySelector("#canvasA");
+
+      // Clear Canvas
+      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
+
+      /*-------------------------
+        動畫
+      -------------------------*/
+      this.timer = d3.timer(elapsed => {
+        this.animationLine(elapsed);
+      });
+
+      // Canvas On Mouseover
+      canvasA.addEventListener("mousemove", e => {
+        this.showTooltip(e);
+      });
+    },
+    animationLine(elapsed) {
+      let duration = 700;
+      let t = Math.min(1, elapsed / duration); // compute how far through the animation we are (0 to 1)
+
+      // Clear Canvas
+      this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
+
+      /*-------------------------
+        甜甜圈
+      -------------------------*/
+      this.pie.forEach((e, i) => {
+        // 開始繪製
+        this.ctxA.beginPath();
+        this.ctxA.arc(
+          this.conWidth / 2,
+          this.conHeight / 2,
+          this.radius,
+          e.startAngle,
+          e.startAngle + (e.endAngle - e.startAngle) * t
+        );
+        // 邊框色
+        this.ctxA.lineWidth = this.chartOuterRadius - this.chartInnerRadius;
+        this.ctxA.strokeStyle = e.color;
+        this.ctxA.globalAlpha = t;
+        this.ctxA.stroke();
+      });
+
+      /*-------------------------
+        甜甜圈文字
+      -------------------------*/
+      this.pie.forEach((e, i) => {
+        let theta = e.startAngle + (e.endAngle - e.startAngle) / 2;
+        let x = this.radius * Math.cos(theta);
+        let y = this.radius * Math.sin(theta);
+
+        // 開始繪製
+        this.ctxA.textAlign = "center";
+        this.ctxA.textBaseline = "middle";
+        this.ctxA.font = "16px sans-serif";
+        this.ctxA.fillStyle = "#fff";
+        this.ctxA.fillText(
+          e.percentage,
+          this.conWidth / 2 + x,
+          this.conHeight / 2 + y
+        );
+      });
+
+      // if this animation is over
+      if (t === 1) {
+        // stop this timer since we are done animating.
+        this.timer.stop();
+      }
+    },
     randomData() {
       let min = 0;
       let max = 500;
@@ -221,54 +289,63 @@ export default {
 
       this.data = newRandom;
 
-      // 用 js 跑展開動畫
-      this.$nextTick().then(() => {
-        // DOM updated
-        this.donut.forEach((el, index) => {
-          let totalTime = 500; // 設定時間跑 css
-          let stroke = this.dasharray(el.percentage);
+      // Init Canvas
+      this.initCanvas();
 
-          // 起始位置
-          this.$refs.circles[index].style.cssText = `stroke-dasharray: 0 ${
-            this.circum
-          }; opacity: 0`;
+      // Window Resize
+      window.addEventListener("resize", this.initCanvas);
+    },
+    showTooltip(e) {
+      // Correct mouse position:
+      let canvas = document.querySelector("#canvasA");
+      let rect = canvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      let mouseX = x + 20;
+      let mouseY = y;
+      let pointCircle = false;
 
-          // 設定 Interval
-          setTimeout(() => {
-            this.$refs.circles[index].style.cssText = `stroke-dasharray: ${
-              stroke.dash
-            } ${stroke.gap}; opacity: 1`;
-          }, totalTime);
-        });
+      this.pie.forEach((e, i) => {
+        this.ctxA.beginPath();
+        // 外圓弧
+        this.ctxA.arc(
+          this.conWidth / 2,
+          this.conHeight / 2,
+          this.chartOuterRadius,
+          e.startAngle,
+          e.endAngle
+        );
+        // 內圓弧
+        this.ctxA.arc(
+          this.conWidth / 2,
+          this.conHeight / 2,
+          this.chartInnerRadius,
+          e.endAngle,
+          e.startAngle,
+          true // 反時鐘連接
+        );
+        this.ctxA.closePath();
+        // 如果滑過點
+        if (this.ctxA.isPointInPath(x, y) && !pointCircle) {
+          // 設置位置
+          document
+            .querySelector(".tooltip")
+            .setAttribute("style", `left: ${mouseX}px; top: ${mouseY}px;`);
+          // 插入名稱
+          document.querySelector(".tooltip .name").innerHTML = `${
+            e.name
+          } / 6月`;
+          document.querySelector(".tooltip .value").innerHTML = `${
+            e.value
+          } 件`;
+
+          // Tooltip 區塊
+          this.hideTooltip = false;
+          pointCircle = true;
+        } else if (!this.ctxA.isPointInPath(x, y) && !pointCircle) {
+          this.hideTooltip = true;
+        }
       });
-    },
-    dasharray(percentage) {
-      let dash = this.circum / 100 * percentage; // percentage%
-      let gap = this.circum / 100 * (100 - percentage);
-
-      return { dash: dash, gap: gap };
-    },
-    showTooltip(index, event) {
-      let mouseX = event.clientX + 20;
-      let mouseY = event.clientY;
-
-      // 設置位置
-      document
-        .querySelector(".tooltip")
-        .setAttribute("style", `left: ${mouseX}px; top: ${mouseY}px;`);
-      // 插入名稱
-      document.querySelector(".tooltip .name").innerHTML = `${
-        this.data[index].name
-      } / ${this.pie[index].percentage}`;
-      document.querySelector(".tooltip .value").innerHTML = `${
-        this.data[index].value
-      } 件`;
-
-      // 顯示 tooltip
-      this.hideTooltip = false;
-    },
-    hiddenTooltip() {
-      this.hideTooltip = true;
     }
   }
 };
@@ -285,21 +362,19 @@ export default {
     max-width: 600px;
     margin: 15px auto;
     overflow: hidden;
+    position: relative;
     .chartWrap {
       width: 100%;
+      position: relative;
       @media screen and (min-width: 600px) {
         width: calc(100% - 200px);
         float: left;
       }
-      .chart {
-        width: 100%;
-        padding-bottom: 100%;
-        height: 1px;
-        overflow: visible;
-        transform: rotate(-90deg);
-        .circle {
-          transition: 1s;
-        }
+      .chartA {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
       }
     }
     ul.labelWrap {
@@ -343,7 +418,7 @@ export default {
       position: absolute;
       text-align: left;
       line-height: 1.5em;
-      z-index: 1;
+      z-index: 2;
       &.hidden {
         visibility: hidden;
       }
