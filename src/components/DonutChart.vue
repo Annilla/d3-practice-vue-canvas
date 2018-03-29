@@ -38,8 +38,6 @@ export default {
       conWidth: 0, // Get Container Width
       canvas: undefined, // For D3 Draw Canvas
       ctx: undefined, // Set Canvas 2D
-      canvasA: undefined, // For D3 Draw Canvas Animate
-      ctxA: undefined, // Set Canvas 2D Animate
       customBase: undefined, // This is the parent of all other elements
       custom: undefined,
       timer: undefined // For Animation Timer
@@ -115,12 +113,10 @@ export default {
     initCanvas() {
       let chartContain = document.querySelector(".chartWrap");
       let canvas = document.getElementById("canvas");
-      let canvasA = document.getElementById("canvasA");
 
       // Clear Canvas Element
       if (canvas !== null) {
         canvas.parentNode.removeChild(canvas);
-        canvasA.parentNode.removeChild(canvasA);
       }
 
       // Get Container Width
@@ -134,17 +130,8 @@ export default {
         .attr("class", "chart")
         .attr("width", this.conWidth)
         .attr("height", this.conHeight);
-      // For D3 Draw Canvas Animation
-      this.canvasA = d3
-        .select(".chartWrap")
-        .append("canvas")
-        .attr("id", "canvasA")
-        .attr("class", "chartA")
-        .attr("width", this.conWidth)
-        .attr("height", this.conHeight);
 
       this.ctx = this.canvas.node().getContext("2d");
-      this.ctxA = this.canvasA.node().getContext("2d");
 
       // Set the parent of all other elements
       this.customBase = document.createElement("custom");
@@ -154,10 +141,7 @@ export default {
       this.drawCanvas();
     },
     drawCanvas() {
-      let canvasA = document.querySelector("#canvasA");
-
-      // Clear Canvas
-      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
+      let canvas = document.querySelector("#canvas");
 
       /*-------------------------
         動畫
@@ -167,7 +151,7 @@ export default {
       });
 
       // Canvas On Mouseover
-      canvasA.addEventListener("mousemove", e => {
+      canvas.addEventListener("mousemove", e => {
         this.showTooltip(e);
       });
     },
@@ -176,15 +160,16 @@ export default {
       let t = Math.min(1, elapsed / duration); // compute how far through the animation we are (0 to 1)
 
       // Clear Canvas
-      this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
+      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
 
       /*-------------------------
         甜甜圈
       -------------------------*/
+      this.ctx.save();
       this.pie.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.beginPath();
-        this.ctxA.arc(
+        this.ctx.beginPath();
+        this.ctx.arc(
           this.conWidth / 2,
           this.conHeight / 2,
           this.radius,
@@ -192,10 +177,10 @@ export default {
           e.startAngle + (e.endAngle - e.startAngle) * t
         );
         // 邊框色
-        this.ctxA.lineWidth = this.chartOuterRadius - this.chartInnerRadius;
-        this.ctxA.strokeStyle = e.color;
-        this.ctxA.globalAlpha = t;
-        this.ctxA.stroke();
+        this.ctx.lineWidth = this.chartOuterRadius - this.chartInnerRadius;
+        this.ctx.strokeStyle = e.color;
+        this.ctx.globalAlpha = t;
+        this.ctx.stroke();
       });
 
       /*-------------------------
@@ -207,16 +192,17 @@ export default {
         let y = this.radius * Math.sin(theta);
 
         // 開始繪製
-        this.ctxA.textAlign = "center";
-        this.ctxA.textBaseline = "middle";
-        this.ctxA.font = "16px sans-serif";
-        this.ctxA.fillStyle = "#fff";
-        this.ctxA.fillText(
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.font = "16px sans-serif";
+        this.ctx.fillStyle = "#fff";
+        this.ctx.fillText(
           e.percentage,
           this.conWidth / 2 + x,
           this.conHeight / 2 + y
         );
       });
+      this.ctx.restore();
 
       // if this animation is over
       if (t === 1) {
@@ -297,7 +283,7 @@ export default {
     },
     showTooltip(e) {
       // Correct mouse position:
-      let canvas = document.querySelector("#canvasA");
+      let canvas = document.querySelector("#canvas");
       let rect = canvas.getBoundingClientRect();
       let x = e.clientX - rect.left;
       let y = e.clientY - rect.top;
@@ -306,9 +292,9 @@ export default {
       let pointCircle = false;
 
       this.pie.forEach((e, i) => {
-        this.ctxA.beginPath();
+        this.ctx.beginPath();
         // 外圓弧
-        this.ctxA.arc(
+        this.ctx.arc(
           this.conWidth / 2,
           this.conHeight / 2,
           this.chartOuterRadius,
@@ -316,7 +302,7 @@ export default {
           e.endAngle
         );
         // 內圓弧
-        this.ctxA.arc(
+        this.ctx.arc(
           this.conWidth / 2,
           this.conHeight / 2,
           this.chartInnerRadius,
@@ -324,9 +310,9 @@ export default {
           e.startAngle,
           true // 反時鐘連接
         );
-        this.ctxA.closePath();
+        this.ctx.closePath();
         // 如果滑過點
-        if (this.ctxA.isPointInPath(x, y) && !pointCircle) {
+        if (this.ctx.isPointInPath(x, y) && !pointCircle) {
           // 設置位置
           document
             .querySelector(".tooltip")
@@ -342,7 +328,7 @@ export default {
           // Tooltip 區塊
           this.hideTooltip = false;
           pointCircle = true;
-        } else if (!this.ctxA.isPointInPath(x, y) && !pointCircle) {
+        } else if (!this.ctx.isPointInPath(x, y) && !pointCircle) {
           this.hideTooltip = true;
         }
       });
@@ -369,12 +355,6 @@ export default {
       @media screen and (min-width: 600px) {
         width: calc(100% - 200px);
         float: left;
-      }
-      .chartA {
-        position: absolute;
-        left: 0;
-        top: 0;
-        z-index: 1;
       }
     }
     ul.labelWrap {

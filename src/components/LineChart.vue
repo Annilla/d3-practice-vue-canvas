@@ -33,8 +33,6 @@ export default {
       conWidth: 0, // Get Container Width
       canvas: undefined, // For D3 Draw Canvas
       ctx: undefined, // Set Canvas 2D
-      canvasA: undefined, // For D3 Draw Canvas Animate
-      ctxA: undefined, // Set Canvas 2D Animate
       customBase: undefined, // This is the parent of all other elements
       custom: undefined,
       yTick: undefined, // Y軸 tick
@@ -157,7 +155,7 @@ export default {
           //利用尺度運算資料的值，傳回y的位置
           return this.yScale(d) + this.chartTop;
         })
-        .context(this.ctxA);
+        .context(this.ctx);
     },
     lines() {
       // 折線
@@ -201,12 +199,10 @@ export default {
     initCanvas() {
       let chartContain = document.querySelector(".chartContain");
       let canvas = document.getElementById("canvas");
-      let canvasA = document.getElementById("canvasA");
 
       // Clear Canvas Element
       if (canvas !== null) {
         canvas.parentNode.removeChild(canvas);
-        canvasA.parentNode.removeChild(canvasA);
       }
 
       // Get Container Width
@@ -220,48 +216,19 @@ export default {
         .attr("class", "chart")
         .attr("width", this.conWidth)
         .attr("height", this.conHeight);
-      // For D3 Draw Canvas Animation
-      this.canvasA = d3
-        .select(".chartContain")
-        .append("canvas")
-        .attr("id", "canvasA")
-        .attr("class", "chartA")
-        .attr("width", this.conWidth)
-        .attr("height", this.conHeight);
 
       this.ctx = this.canvas.node().getContext("2d");
-      this.ctxA = this.canvasA.node().getContext("2d");
 
       // Set the parent of all other elements
       this.customBase = document.createElement("custom");
       this.custom = d3.select(this.customBase);
 
-      // Data Bind
-      this.dataBind(this.data);
-    },
-    dataBind(data) {
-      let dotIndex = 0; // For dot color
-      let nameIndex = 0; // For Name
-
-      /*-------------------------
-        Y軸
-      -------------------------*/
-      this.yTick = this.custom
-        .append("g")
-        .attr("class", "axis axisY")
-        .call(this.yAxis)
-        .selectAll("g.tick");
-
       // Draw Canvas
       this.drawCanvas();
     },
-    drawCanvas() {
+    drawStatic() { // 繪製不須動畫的元素
       let tickSize = 6; // 軸點大小
-      let canvasA = document.querySelector("#canvasA");
-
-      // Clear Canvas
-      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
-
+    
       /*-------------------------
         X軸
       -------------------------*/
@@ -335,6 +302,13 @@ export default {
       /*-------------------------
         Y軸
       -------------------------*/
+      // Y軸節點
+      this.yTick = this.custom
+        .append("g")
+        .attr("class", "axis axisY")
+        .call(this.yAxis)
+        .selectAll("g.tick");
+      
       // 繪製Y軸點
       this.ctx.beginPath();
       // 中間內部灰線
@@ -390,6 +364,9 @@ export default {
       this.ctx.font = "16px sans-serif";
       this.ctx.fillText("件數", -(this.chartTop + this.chartHeight / 2), 0);
       this.ctx.restore(); // now restore the canvas flipping it back to its original orientation
+    },
+    drawCanvas() {
+      let canvas = document.querySelector("#canvas");
 
       /*-------------------------
         動畫
@@ -399,7 +376,7 @@ export default {
       });
 
       // Canvas On Mouseover
-      canvasA.addEventListener("mousemove", e => {
+      canvas.addEventListener("mousemove", e => {
         this.showTooltip(e);
       });
     },
@@ -408,11 +385,15 @@ export default {
       let t = Math.min(1, elapsed / duration); // compute how far through the animation we are (0 to 1)
 
       // Clear Canvas
-      this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
+      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
+
+      // 繪製不須動畫的元素
+      this.drawStatic();
 
       /*-------------------------
         折線
       -------------------------*/
+      this.ctx.save();
       this.lines.forEach((e, i) => {
         let path = document.querySelector("#calPath path");
         let totalLength; // Path Length
@@ -420,12 +401,12 @@ export default {
         path.setAttribute("d", e.d);
         totalLength = path.getTotalLength();
 
-        this.ctxA.setLineDash([totalLength]);
-        this.ctxA.lineDashOffset = totalLength * (1 - t);
-        this.ctxA.beginPath(); // 開始繪製
+        this.ctx.setLineDash([totalLength]);
+        this.ctx.lineDashOffset = totalLength * (1 - t);
+        this.ctx.beginPath(); // 開始繪製
         this.lineCanvas(this.dataArray[i]);
-        this.ctxA.strokeStyle = e.color; // 線顏色
-        this.ctxA.stroke(); // 繪製線
+        this.ctx.strokeStyle = e.color; // 線顏色
+        this.ctx.stroke(); // 繪製線
       });
 
       /*-------------------------
@@ -433,18 +414,19 @@ export default {
       -------------------------*/
       this.dots.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.beginPath();
+        this.ctx.beginPath();
         // 繪製點
-        this.ctxA.arc(e.cx, e.cy, e.r * t, 0, 2 * Math.PI);
+        this.ctx.arc(e.cx, e.cy, e.r * t, 0, 2 * Math.PI);
         // 填色
-        this.ctxA.fillStyle = e.color;
-        this.ctxA.fill();
+        this.ctx.fillStyle = e.color;
+        this.ctx.fill();
         // 邊框色
-        this.ctxA.strokeStyle = "#fff";
-        this.ctxA.stroke();
+        this.ctx.strokeStyle = "#fff";
+        this.ctx.stroke();
         // 結束繪製
-        this.ctxA.closePath();
+        this.ctx.closePath();
       });
+      this.ctx.restore();
 
       // if this animation is over
       if (t === 1) {
@@ -550,7 +532,7 @@ export default {
     },
     showTooltip(e) {
       // Correct mouse position:
-      let canvas = document.querySelector("#canvasA");
+      let canvas = document.querySelector("#canvas");
       let rect = canvas.getBoundingClientRect();
       let x = e.clientX - rect.left;
       let y = e.clientY - rect.top;
@@ -560,11 +542,11 @@ export default {
 
       this.dots.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.beginPath();
+        this.ctx.beginPath();
         // 點 Path
-        this.ctxA.arc(e.cx, e.cy, e.r, 0, 2 * Math.PI);
+        this.ctx.arc(e.cx, e.cy, e.r, 0, 2 * Math.PI);
         // 如果滑過點
-        if (this.ctxA.isPointInPath(x, y) && !pointCircle) {
+        if (this.ctx.isPointInPath(x, y) && !pointCircle) {
           // 設置位置
           document
             .querySelector(".tooltip")
@@ -580,7 +562,7 @@ export default {
           // Tooltip 區塊
           this.hideTooltip = false;
           pointCircle = true;
-        } else if (!this.ctxA.isPointInPath(x, y) && !pointCircle) {
+        } else if (!this.ctx.isPointInPath(x, y) && !pointCircle) {
           this.hideTooltip = true;
         }
       });
@@ -601,12 +583,6 @@ export default {
     position: relative;
     #calPath {
       display: none;
-    }
-    .chartA {
-      position: absolute;
-      left: 0;
-      top: 0;
-      z-index: 1;
     }
     .tooltip {
       min-width: 100px;

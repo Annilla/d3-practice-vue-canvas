@@ -33,8 +33,6 @@ export default {
       conWidth: 0, // Get Container Width
       canvas: undefined, // For D3 Draw Canvas
       ctx: undefined, // Set Canvas 2D
-      canvasA: undefined, // For D3 Draw Canvas Animate
-      ctxA: undefined, // Set Canvas 2D Animate
       customBase: undefined, // This is the parent of all other elements
       custom: undefined,
       xTick: undefined, // X軸 tick
@@ -210,12 +208,10 @@ export default {
     initCanvas() {
       let chartContain = document.querySelector(".chartContain");
       let canvas = document.getElementById("canvas");
-      let canvasA = document.getElementById("canvasA");
 
       // Clear Canvas Element
       if (canvas !== null) {
         canvas.parentNode.removeChild(canvas);
-        canvasA.parentNode.removeChild(canvasA);
       }
 
       // Get Container Width
@@ -229,26 +225,19 @@ export default {
         .attr("class", "chart")
         .attr("width", this.conWidth)
         .attr("height", this.conHeight);
-      // For D3 Draw Canvas Animation
-      this.canvasA = d3
-        .select(".chartContain")
-        .append("canvas")
-        .attr("id", "canvasA")
-        .attr("class", "chartA")
-        .attr("width", this.conWidth)
-        .attr("height", this.conHeight);
 
       this.ctx = this.canvas.node().getContext("2d");
-      this.ctxA = this.canvasA.node().getContext("2d");
 
       // Set the parent of all other elements
       this.customBase = document.createElement("custom");
       this.custom = d3.select(this.customBase);
 
-      // Data Bind
-      this.dataBind(this.data);
+      // Draw Canvas
+      this.drawCanvas();
     },
-    dataBind(data) {
+    drawStatic() {
+      let tickSize = 6; // 軸點大小
+
       /*-------------------------
         X軸
       -------------------------*/
@@ -257,26 +246,6 @@ export default {
         .attr("class", "axis axisX")
         .call(this.xAxis)
         .selectAll("g.tick");
-
-      /*-------------------------
-        Y軸
-      -------------------------*/
-      this.yTick = this.custom
-        .append("g")
-        .attr("class", "axis axisY")
-        .call(this.yAxis)
-        .selectAll("g.tick");
-
-      // Draw Canvas
-      this.drawCanvas();
-    },
-    drawCanvas() {
-      let tickSize = 6; // 軸點大小
-      let canvasA = document.querySelector("#canvasA");
-
-      /*-------------------------
-        X軸
-      -------------------------*/
       // 繪製X軸點
       this.ctx.beginPath();
       // 黑色刻點
@@ -354,6 +323,11 @@ export default {
       /*-------------------------
         Y軸
       -------------------------*/
+      this.yTick = this.custom
+        .append("g")
+        .attr("class", "axis axisY")
+        .call(this.yAxis)
+        .selectAll("g.tick");
       // 繪製Y軸點
       this.ctx.save();
       this.ctx.beginPath();
@@ -411,6 +385,9 @@ export default {
       this.ctx.font = "16px sans-serif";
       this.ctx.fillText("件數", -(this.chartTop + this.chartHeight / 2), 0);
       this.ctx.restore(); // now restore the canvas flipping it back to its original orientation
+    },
+    drawCanvas() {
+      let canvas = document.querySelector("#canvas");
 
       /*-------------------------
         動畫
@@ -420,7 +397,7 @@ export default {
       });
 
       // Canvas On Mouseover
-      canvasA.addEventListener("mousemove", e => {
+      canvas.addEventListener("mousemove", e => {
         this.showTooltip(e);
       });
     },
@@ -429,31 +406,36 @@ export default {
       let t = Math.min(1, elapsed / duration); // compute how far through the animation we are (0 to 1)
 
       // Clear Canvas
-      this.ctxA.clearRect(0, 0, this.conWidth, this.conHeight);
+      this.ctx.clearRect(0, 0, this.conWidth, this.conHeight);
+
+      // 繪製不須動畫的元素
+      this.drawStatic();
 
       /*-------------------------
         直條
       -------------------------*/
+      this.ctx.save();
       this.bars.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.beginPath();
-        this.ctxA.rect(e.x, e.y + e.height * (1 - t), e.width, e.height * t);
-        this.ctxA.globalAlpha = t;
-        this.ctxA.fillStyle = e.color;
-        this.ctxA.fill();
+        this.ctx.beginPath();
+        this.ctx.rect(e.x, e.y + e.height * (1 - t), e.width, e.height * t);
+        this.ctx.globalAlpha = t;
+        this.ctx.fillStyle = e.color;
+        this.ctx.fill();
       });
 
       /*-------------------------
         直條文字
       -------------------------*/
-      this.ctxA.font = "12px sans-serif";
-      this.ctxA.textBaseline = "bottom";
-      this.ctxA.textAlign = "center";
-      this.ctxA.fillStyle = "gray";
+      this.ctx.font = "12px sans-serif";
+      this.ctx.textBaseline = "bottom";
+      this.ctx.textAlign = "center";
+      this.ctx.fillStyle = "gray";
       this.bars.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.fillText(e.number, e.x + this.barWidth / 2, e.y);
+        this.ctx.fillText(e.number, e.x + this.barWidth / 2, e.y);
       });
+      this.ctx.restore();
 
       // if this animation is over
       if (t === 1) {
@@ -500,7 +482,7 @@ export default {
     },
     showTooltip(e) {
       // Correct mouse position:
-      let canvas = document.querySelector("#canvasA");
+      let canvas = document.querySelector("#canvas");
       let rect = canvas.getBoundingClientRect();
       let x = e.clientX - rect.left;
       let y = e.clientY - rect.top;
@@ -510,10 +492,10 @@ export default {
 
       this.bars.forEach((e, i) => {
         // 開始繪製
-        this.ctxA.beginPath();
-        this.ctxA.rect(e.x, e.y, e.width, e.height);
+        this.ctx.beginPath();
+        this.ctx.rect(e.x, e.y, e.width, e.height);
         // 如果滑過
-        if (this.ctxA.isPointInPath(x, y) && !pointRec) {
+        if (this.ctx.isPointInPath(x, y) && !pointRec) {
           // 設置位置
           document
             .querySelector(".tooltip")
@@ -529,7 +511,7 @@ export default {
           // Tooltip 區塊
           this.hideTooltip = false;
           pointRec = true;
-        } else if (!this.ctxA.isPointInPath(x, y) && !pointRec) {
+        } else if (!this.ctx.isPointInPath(x, y) && !pointRec) {
           this.hideTooltip = true;
         }
       });
@@ -549,12 +531,6 @@ export default {
     max-width: 600px;
     margin: 0 auto;
     position: relative;
-    .chartA {
-      position: absolute;
-      left: 0;
-      top: 0;
-      z-index: 1;
-    }
     .tooltip {
       min-width: 100px;
       background-color: rgba(0, 0, 0, 0.9);
